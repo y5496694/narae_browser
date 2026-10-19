@@ -128,7 +128,7 @@ export class ModelClient {
     } catch {
       throw new Fault("MODEL_FORMAT", "Model endpoint returned invalid JSON");
     }
-    if (this.provider === "ollama" && d.model && d.model !== this.model)
+    if (d.model && d.model !== this.model)
       throw new Fault("MODEL_IDENTITY", "Runtime returned a different model");
     const text =
       this.provider === "ollama"

@@ -96,14 +96,26 @@ test("HTTP failure and truncated outputs fail, never fabricate summary or switch
   );
 });
 test("model identity mismatch fails closed", async () => {
-  await mock(
-    (req, res) =>
-      response(res, { model: "different", message: { content: "{}" } }),
-    async (baseUrl) => {
-      await assert.rejects(
-        new ModelClient({ baseUrl, provider: "ollama", model: "x" }).json([]),
-        (e) => e.code === "MODEL_IDENTITY",
-      );
-    },
-  );
+  for (const provider of ["ollama", "openai"]) {
+    let requests = 0;
+    await mock(
+      (req, res) => {
+        requests++;
+        response(res, {
+          model: "different",
+          message: { content: "{}" },
+          choices: [{ finish_reason: "stop", message: { content: "{}" } }],
+        });
+      },
+      async (baseUrl) => {
+        const client = new ModelClient({ baseUrl, provider, model: "x" });
+        await assert.rejects(
+          client.json([]),
+          (e) => e.code === "MODEL_IDENTITY",
+        );
+        assert.equal(requests, 1);
+        assert.deepEqual(client.usage, []);
+      },
+    );
+  }
 });

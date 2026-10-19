@@ -91,6 +91,8 @@ narae-browser news --count 3 --provider openai --base-url http://127.0.0.1:8080/
 
 OpenAI 호환 서버는 Chat Completions와 JSON Schema 응답을 지원해야 합니다. Ollama native와 달리 해당 서버의 컨텍스트·추론 옵션은 서버 설정을 따릅니다. llama.cpp/LM Studio 같은 로컬 API를 연결하는 어댑터를 제공하지만, 실제 서버별 동작은 별도 확인해야 합니다. 외부 API로 자동 우회하지 않습니다.
 
+응답에 모델 ID가 있으면 두 provider 모두 요청한 ID와 대조하고, 다르면 `MODEL_IDENTITY`로 중단합니다. API의 모델 ID 확인과 실제 가중치·LoRA 파일 확인은 별도입니다. 학습 어댑터는 추론 서버에서 로드하고 파일 해시와 활성 어댑터를 확인해야 합니다.
+
 환경 변수: `NARAE_MODEL_PROVIDER`, `NARAE_MODEL_BASE_URL`, `NARAE_MODEL`, 필요하면 `NARAE_MODEL_API_KEY`. API 키는 CLI 인자로 받지 않습니다. 모델이 로컬인지 여부는 **사용자가 지정한 endpoint**에 달려 있습니다.
 
 ## 나래 도구·외부 에이전트 연결
