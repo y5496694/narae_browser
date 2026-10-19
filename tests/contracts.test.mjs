@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { webUrl, bound } from "../src/browser.mjs";
+import { webUrl, bound, BrowserEngine } from "../src/browser.mjs";
 import { parseJson, validateSummary, ModelClient } from "../src/model.mjs";
 import {
   actionFromArgs,
@@ -24,6 +24,18 @@ test("bounded numeric inputs reject negative/NaN/unbounded/fractional limits", (
   assert.equal(bound(undefined, 1, 100, 35), 35);
   for (const x of [0, 101, "bad", Infinity, 1.2])
     assert.throws(() => bound(x, 1, 100, 35));
+});
+
+test("missing read selector fails instead of returning a successful empty body", async () => {
+  const engine = new BrowserEngine();
+  engine.page = {
+    evaluate: async () => ({ text: "", error: "SELECTOR_NOT_FOUND" }),
+  };
+  await assert.rejects(() => engine.read({ selector: "#missing" }), {
+    code: "SELECTOR_NOT_FOUND",
+  });
+  engine.page.evaluate = async () => ({ text: "", totalChars: 0, offset: 0 });
+  assert.equal((await engine.read()).totalChars, 0);
 });
 test("small-model JSON accepts plain/fenced objects and rejects fake JS/arrays", () => {
   assert.deepEqual(parseJson('```json\n{"action":"read"}\n```'), {

@@ -40,6 +40,7 @@ narae-browser press Enter --session work
 - **새 snapshot·이동·입력 뒤에는 이전 ref를 폐기**합니다. 만료된 ref는 `STALE_REF` 오류이며 다른 요소를 대신 누르지 않습니다.
 - `fill`, `select`, `press`, `scroll`, `wait`, `tabs`, `tab`도 지원합니다. 전체 계약은 `narae-browser schema`로 확인합니다.
 - `read --selector '#dic_area' --chars 5000 --offset 0`처럼 본문 범위를 지정할 수 있습니다.
+- 지정한 본문 선택자가 없으면 `SELECTOR_NOT_FOUND` 오류를 반환합니다. 빈 본문을 성공으로 처리하지 않으며, `serve`에서도 해당 줄에 `ok:false`를 반환합니다.
 - `--headed`는 **새 세션을 시작할 때** 브라우저 창을 띄웁니다. 기존 headless 세션은 먼저 `close`해야 합니다.
 - ref는 축약 DOM 관찰 결과입니다. 완전한 접근성 트리·화면 픽셀 인식이나 캔버스 내부 객체 인식은 아닙니다.
 

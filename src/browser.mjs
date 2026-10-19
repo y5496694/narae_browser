@@ -197,7 +197,7 @@ export class BrowserEngine {
   async read(args = {}) {
     const chars = bound(args.chars, 100, 20000, 5000),
       offset = bound(args.offset, 0, 1000000, 0);
-    return this.page.evaluate(
+    const result = await this.page.evaluate(
       ({ chars, offset, selector }) => {
         const el = selector
           ? document.querySelector(selector)
@@ -251,6 +251,12 @@ export class BrowserEngine {
       },
       { chars, offset, selector: args.selector || null },
     );
+    if (result.error)
+      throw new Fault(
+        result.error,
+        "Requested content was not found; take a new snapshot",
+      );
+    return result;
   }
   async execute(command) {
     if (!command || typeof command !== "object" || Array.isArray(command))

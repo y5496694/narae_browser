@@ -24,7 +24,7 @@ test("real isolated Chrome through separate CLI processes and private daemon", a
       const child = spawn(
         process.execPath,
         [cli, ...args, "--session", "fixture"],
-        { env, stdio: ["pipe", "pipe", "pipe"] },
+        { env, stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
       );
       let out = "",
         err = "";
@@ -82,6 +82,16 @@ test("real isolated Chrome through separate CLI processes and private daemon", a
         );
         const result = await run(["read", "--selector", "#result"]);
         assert.equal(result.result.data.text, "안녕하세요 인호");
+        const missing = await run(["read", "--selector", "#missing"]);
+        assert.equal(missing.code, 1);
+        assert.equal(missing.result.ok, false);
+        assert.equal(missing.result.error.code, "SELECTOR_NOT_FOUND");
+        const stream = await run(
+          ["serve"],
+          JSON.stringify({ action: "read", selector: "#missing" }) + "\n",
+        );
+        assert.equal(stream.result.ok, false);
+        assert.equal(stream.result.error.code, "SELECTOR_NOT_FOUND");
       },
     );
     await t.test(
