@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extensionToken } from "../src/existing-browser.mjs";
+import {
+  extensionToken,
+  extensionEnvironment,
+} from "../src/existing-browser.mjs";
 
 test("explicit process token takes precedence over a saved Windows token", () => {
   assert.equal(
@@ -61,4 +64,27 @@ test("missing, failed and unrelated registry values do not supply a token", () =
     }),
     undefined,
   );
+});
+
+test("caller-specific extension environment overrides inheritance without mutating the host", () => {
+  const inherited = { PLAYWRIGHT_MCP_EXTENSION_TOKEN: "inherited-fixture" };
+  const values = extensionEnvironment({
+    PLAYWRIGHT_MCP_EXTENSION_TOKEN: " office-fixture ",
+    PLAYWRIGHT_MCP_BROWSER: "msedge",
+    PLAYWRIGHT_MCP_PROFILE_DIR_NAME: "Profile 2",
+  });
+  assert.equal(
+    extensionToken({ env: { ...inherited, ...values }, platform: "linux" }),
+    "office-fixture",
+  );
+  assert.equal(inherited.PLAYWRIGHT_MCP_EXTENSION_TOKEN, "inherited-fixture");
+  assert.equal(values.PLAYWRIGHT_MCP_PROFILE_DIR_NAME, "Profile 2");
+  for (const value of [
+    { NODE_OPTIONS: "arbitrary" },
+    { PLAYWRIGHT_MCP_EXTENSION_TOKEN: "line\nbreak" },
+    { PLAYWRIGHT_MCP_BROWSER: "unsupported" },
+  ])
+    assert.throws(() => extensionEnvironment(value), {
+      code: "INVALID_EXTENSION_ENV",
+    });
 });
