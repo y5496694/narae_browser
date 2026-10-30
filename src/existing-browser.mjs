@@ -1,5 +1,5 @@
 import { chromium } from "playwright-core";
-import { fork } from "node:child_process";
+import { execFileSync, fork } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,35 @@ import { fileURLToPath } from "node:url";
 export const extensionInstallURL =
   "https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm";
 const fault = (code, message) => Object.assign(new Error(message), { code });
+
+// An already running desktop host does not inherit later User environment edits.
+// Read only this named value; never persist it in session files or diagnostics.
+export function extensionToken({
+  env = process.env,
+  platform = process.platform,
+  query = execFileSync,
+} = {}) {
+  if (env.PLAYWRIGHT_MCP_EXTENSION_TOKEN?.trim())
+    return env.PLAYWRIGHT_MCP_EXTENSION_TOKEN.trim();
+  if (platform !== "win32") return undefined;
+  try {
+    const result = query(
+      "reg.exe",
+      ["query", "HKCU\\Environment", "/v", "PLAYWRIGHT_MCP_EXTENSION_TOKEN"],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 5000,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    return result.match(
+      /^\s*PLAYWRIGHT_MCP_EXTENSION_TOKEN\s+REG_SZ\s+(\S+)\s*$/m,
+    )?.[1];
+  } catch {
+    return undefined;
+  }
+}
 
 export function localCDPEndpoint(value) {
   let url;
@@ -59,6 +88,7 @@ export async function connectExistingBrowser({
       "Default 또는 Profile 번호를 지정하세요.",
     );
   fs.mkdirSync(directory, { recursive: true });
+  const token = extensionToken();
   const log = fs.openSync(path.join(directory, "extension-host.log"), "a");
   const child = fork(
     fileURLToPath(new URL("./extension-host.mjs", import.meta.url)),
@@ -68,6 +98,7 @@ export async function connectExistingBrowser({
       execArgv: [],
       env: {
         ...process.env,
+        ...(token ? { PLAYWRIGHT_MCP_EXTENSION_TOKEN: token } : {}),
         ELECTRON_RUN_AS_NODE: "1",
         PWTEST_SERVER_REGISTRY: path.join(directory, "registry"),
       },
