@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webUrl, bound, BrowserEngine } from "../src/browser.mjs";
+import { connectionOptions } from "../src/session.mjs";
 import { parseJson, validateSummary, ModelClient } from "../src/model.mjs";
 import {
   actionFromArgs,
@@ -83,6 +84,46 @@ test("CLI maps direct short commands to deterministic JSON actions", () => {
   });
   assert.throws(() => actionFromArgs("eval", ["process.exit()"], {}));
   assert.throws(() => actionFromArgs("open", [], {}));
+});
+
+test("session remembers only connection settings, merging defined caller overrides", () => {
+  assert.deepEqual(
+    connectionOptions(
+      {
+        connection: "extension",
+        channel: "msedge",
+        token: "secret",
+        cookie: "secret",
+      },
+      {
+        connection: undefined,
+        channel: undefined,
+        headed: false,
+        model: "ignored",
+      },
+    ),
+    { connection: "extension", channel: "msedge", headed: false },
+  );
+  assert.equal(
+    connectionOptions({ connection: "extension" }, { connection: "isolated" })
+      .connection,
+    "isolated",
+  );
+  assert.deepEqual(
+    actionFromArgs("dialog", [], {
+      decision: "accept",
+      "dialog-id": "d3",
+      "expected-message": "합성 확인?",
+    }),
+    {
+      action: "dialog",
+      decision: "accept",
+      expectedId: "d3",
+      expectedMessage: "합성 확인?",
+    },
+  );
+  for (const action of ["dialog", "check", "uncheck", "hover", "frame"])
+    assert.throws(() => validateAgentAction({ action }, ["example.com"]));
 });
 test("news selection canonicalizes and deduplicates distinct real Naver article IDs", () => {
   const links = [
