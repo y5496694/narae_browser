@@ -2,6 +2,7 @@ import { Fault, bound, webUrl } from "./browser.mjs";
 export const actions = [
   "open",
   "snapshot",
+  "inspect",
   "read",
   "click",
   "hover",
@@ -31,7 +32,17 @@ export function actionFromArgs(name, pos, flags) {
     return pos[i];
   };
   if (name === "open") c.url = required(0, "url");
-  if (["click", "hover", "fill", "select", "check", "uncheck"].includes(name))
+  if (
+    [
+      "inspect",
+      "click",
+      "hover",
+      "fill",
+      "select",
+      "check",
+      "uncheck",
+    ].includes(name)
+  )
     c.ref = required(0, "ref");
   if (name === "fill") c.text = required(1, "text");
   if (name === "select") c.value = required(1, "value");
@@ -141,6 +152,10 @@ export const schema = {
       offset: 0,
     },
     read: { chars: 5000, offset: 0, selector: "optional CSS" },
+    inspect: {
+      ref: "s1/e1",
+      note: "Read bounded element attributes and form fields; secret values are redacted",
+    },
     click: { ref: "s1/e1", force: false, method: "mouse (default) or dom" },
     hover: { ref: "s1/e1", force: false },
     fill: { ref: "s1/e2", text: "value" },

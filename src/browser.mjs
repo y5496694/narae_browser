@@ -294,6 +294,54 @@ export class BrowserEngine {
       ...(actionError ? { actionError } : {}),
     };
   }
+  async withNavigation(action) {
+    const frame = this.frame || this.page.mainFrame();
+    let navigated = false;
+    let resolveNavigation;
+    const navigation = new Promise((resolve) => {
+      resolveNavigation = resolve;
+    });
+    const observed = (changed) => {
+      if (changed === frame) {
+        navigated = true;
+        resolveNavigation();
+      }
+    };
+    this.page.on("framenavigated", observed);
+    try {
+      return await action();
+    } catch (error) {
+      if (!/Execution context was destroyed/.test(String(error.message)))
+        throw error;
+      // Chromium can report the destroyed context just before the matching
+      // frame-navigation event reaches Playwright. Wait only for that proof.
+      if (!navigated) {
+        let timer;
+        try {
+          await Promise.race([
+            navigation,
+            new Promise((resolve) => {
+              timer = setTimeout(resolve, 1500);
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      if (!navigated) throw error;
+      this.pendingAction = null;
+      this.invalidate();
+      // The native handler navigated while evaluate was returning. Never
+      // repeat the click: the caller must read the resulting page separately.
+      return {
+        actionDispatched: true,
+        navigationObserved: true,
+        refresh: "snapshot",
+      };
+    } finally {
+      this.page.off("framenavigated", observed);
+    }
+  }
   async snapshot(args = {}) {
     const limit = bound(args.limit, 1, 100, 35),
       offset = bound(args.offset, 0, 10000, 0),
@@ -580,6 +628,56 @@ export class BrowserEngine {
       }
       case "snapshot":
         return this.snapshot(command);
+      case "inspect": {
+        if (this.policy)
+          throw new Fault(
+            "READ_ONLY",
+            "Agent inspection is limited to visible text",
+          );
+        const { locator } = this.ref(command.ref);
+        return locator.evaluate((element) => {
+          const secret = (e) =>
+            e.type === "password" ||
+            /token|password|passwd|pwd|secret|credential|auth|cookie|session|api.?key|private.?key/i.test(
+              (e.name || "") + " " + (e.id || ""),
+            );
+          const attributes = {};
+          for (const name of [
+            "id",
+            "name",
+            "type",
+            "value",
+            "href",
+            "onclick",
+            "onmousedown",
+            "onmouseup",
+          ])
+            if (element.hasAttribute(name))
+              attributes[name] =
+                name === "value" && secret(element)
+                  ? "[redacted]"
+                  : element.getAttribute(name).slice(0, 1000);
+          return {
+            tag: element.tagName.toLowerCase(),
+            attributes,
+            ...(element.tagName === "FORM"
+              ? {
+                  fields: [...element.elements].slice(0, 100).map((e) => ({
+                    name: e.name || "",
+                    type: e.type || "",
+                    value: secret(e)
+                      ? "[redacted]"
+                      : String(e.value || "").slice(0, 1000),
+                    ...(["checkbox", "radio"].includes(e.type)
+                      ? { checked: e.checked }
+                      : {}),
+                  })),
+                }
+              : {}),
+            untrusted: true,
+          };
+        });
+      }
       case "read":
         return this.read(command);
       case "hover": {
@@ -620,37 +718,39 @@ export class BrowserEngine {
             "CONTROL_UNAVAILABLE",
             "보이고 활성화된 컨트롤만 선택할 수 있습니다.",
           );
-        if (
-          await this.withDialog(() =>
-            command.method === "dom"
-              ? locator.evaluate((element) => {
-                  if (
-                    element.matches(":disabled") ||
-                    element.getAttribute("aria-disabled") === "true"
-                  )
-                    throw new Error("Control is disabled");
-                  const rect = element.getBoundingClientRect();
-                  const init = {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window,
-                    button: 0,
-                    clientX: rect.x + rect.width / 2,
-                    clientY: rect.y + rect.height / 2,
-                  };
-                  element.dispatchEvent(
-                    new MouseEvent("mousedown", { ...init, buttons: 1 }),
-                  );
-                  element.dispatchEvent(new MouseEvent("mouseup", init));
-                  element.click();
-                })
-              : locator.click({ force: command.force === true }),
+        return this.withNavigation(async () => {
+          if (
+            await this.withDialog(() =>
+              command.method === "dom"
+                ? locator.evaluate((element) => {
+                    if (
+                      element.matches(":disabled") ||
+                      element.getAttribute("aria-disabled") === "true"
+                    )
+                      throw new Error("Control is disabled");
+                    const rect = element.getBoundingClientRect();
+                    const init = {
+                      bubbles: true,
+                      cancelable: true,
+                      view: window,
+                      button: 0,
+                      clientX: rect.x + rect.width / 2,
+                      clientY: rect.y + rect.height / 2,
+                    };
+                    element.dispatchEvent(
+                      new MouseEvent("mousedown", { ...init, buttons: 1 }),
+                    );
+                    element.dispatchEvent(new MouseEvent("mouseup", init));
+                    element.click();
+                  })
+                : locator.click({ force: command.force === true }),
+            )
           )
-        )
-          return { actionPending: true, dialog: this.dialogState() };
-        await this.page.waitForLoadState("domcontentloaded");
-        this.invalidate();
-        return this.snapshot(command);
+            return { actionPending: true, dialog: this.dialogState() };
+          await this.page.waitForLoadState("domcontentloaded");
+          this.invalidate();
+          return await this.snapshot(command);
+        });
       }
       case "fill": {
         if (this.policy)

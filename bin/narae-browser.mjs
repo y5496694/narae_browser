@@ -17,6 +17,7 @@ const help = `나래 브라우저 / narae-browser 0.2.0
   narae-browser extension   (existing Chrome connection setup)
   narae-browser open URL [--session NAME] [--headed]
   narae-browser snapshot [--selector CSS] [--filter TEXT] [--offset 0] [--limit 35] [--chars 1600]
+  narae-browser inspect REF   (bounded DOM attributes/form state, secrets redacted)
   narae-browser click REF [--force] [--method mouse|dom] | hover REF [--force]
   narae-browser fill REF TEXT | select REF VALUE | check REF | uncheck REF | press KEY
   narae-browser read [--selector CSS] [--chars 5000] [--offset 0]
