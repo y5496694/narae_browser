@@ -7,6 +7,7 @@ export const actions = [
   "click",
   "hover",
   "fill",
+  "upload",
   "select",
   "check",
   "uncheck",
@@ -38,6 +39,7 @@ export function actionFromArgs(name, pos, flags) {
       "click",
       "hover",
       "fill",
+      "upload",
       "select",
       "check",
       "uncheck",
@@ -45,6 +47,7 @@ export function actionFromArgs(name, pos, flags) {
   )
     c.ref = required(0, "ref");
   if (name === "fill") c.text = required(1, "text");
+  if (name === "upload") c.files = pos.slice(1);
   if (name === "click" && flags.part) c.part = flags.part;
   if (name === "select") c.value = required(1, "value");
   if (name === "press") {
@@ -165,6 +168,11 @@ export const schema = {
     },
     hover: { ref: "s1/e1", force: false },
     fill: { ref: "s1/e2", text: "value" },
+    upload: {
+      ref: "s1/e2",
+      files: ["D:/Codex/workspaces/explicit-file.pdf"],
+      note: "Observed file input or native file chooser; server integrity needs separate verification",
+    },
     select: { ref: "s1/e3", value: "option" },
     check: { ref: "s1/e4" },
     uncheck: { ref: "s1/e4" },
