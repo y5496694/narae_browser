@@ -736,6 +736,19 @@ export class BrowserEngine {
           );
         if (command.part && command.part !== "toggle")
           throw new Fault("INVALID_ARGUMENT", "click part must be toggle");
+        if (
+          command.clickCount !== undefined &&
+          ![1, 2].includes(command.clickCount)
+        )
+          throw new Fault("INVALID_ARGUMENT", "clickCount is one or two");
+        if (
+          command.clickCount === 2 &&
+          !/\.body\.gridrow_\d+\.cell_\d+_\d+(?::text)?$/.test(entry.id || "")
+        )
+          throw new Fault(
+            "GRID_CELL_REQUIRED",
+            "Double click is limited to an observed data-grid cell",
+          );
         let clickTarget = locator;
         if (command.part === "toggle") {
           if (entry.role !== "combobox" || command.method === "dom")
@@ -792,7 +805,9 @@ export class BrowserEngine {
                     element.dispatchEvent(new MouseEvent("mouseup", init));
                     element.click();
                   })
-                : clickTarget.click({ force: command.force === true }),
+                : command.clickCount === 2
+                  ? clickTarget.dblclick({ force: command.force === true })
+                  : clickTarget.click({ force: command.force === true }),
             )
           )
             return { actionPending: true, dialog: this.dialogState() };

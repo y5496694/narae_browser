@@ -49,6 +49,7 @@ export function actionFromArgs(name, pos, flags) {
   if (name === "fill") c.text = required(1, "text");
   if (name === "upload") c.files = pos.slice(1);
   if (name === "click" && flags.part) c.part = flags.part;
+  if (name === "click" && flags.count) c.clickCount = Number(flags.count);
   if (name === "select") c.value = required(1, "value");
   if (name === "press") {
     c.key = required(0, "key");
@@ -165,6 +166,7 @@ export const schema = {
       force: false,
       method: "mouse (default) or dom",
       part: "optional toggle for a uniquely observed combobox dropdown",
+      clickCount: "optional 2 for an observed Nexacro data-grid cell only",
     },
     hover: { ref: "s1/e1", force: false },
     fill: { ref: "s1/e2", text: "value" },
