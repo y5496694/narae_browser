@@ -416,6 +416,11 @@ export class BrowserEngine {
             label,
             id: e.id || "",
             tag,
+            ...(tag === "input" ? { type: e.type } : {}),
+            ...(e.matches(":disabled") ||
+            e.getAttribute("aria-disabled") === "true"
+              ? { disabled: true }
+              : {}),
             ...(check ? { checked: check.checked } : {}),
             ...(tag === "a" ? { href: e.href } : {}),
           });
@@ -426,7 +431,9 @@ export class BrowserEngine {
         return {
           url: location.href,
           title: document.title,
-          text: main.innerText.replace(/\n{3,}/g, "\n\n").slice(0, chars),
+          text: (main?.innerText || "")
+            .replace(/\n{3,}/g, "\n\n")
+            .slice(0, chars),
           elements: list.slice(offset, offset + limit),
           totalElements: list.length,
         };

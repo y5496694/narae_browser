@@ -10,7 +10,7 @@ test("bounded form inspection redacts credentials and DOM submit is never repeat
     if (req.method === "POST") posts++;
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.end(
-      `<main>Posts: ${posts}<form method="post"><input name="documentId" type="hidden" value="synthetic-record"><input name="other" id="access_token" type="hidden" value="hidden-canary"><input name="password" type="password" value="password-canary"><input name="sessionId" type="hidden" value="session-canary"><button type="button" onclick="this.form.submit()">Submit once</button></form></main>`,
+      `<main>Posts: ${posts}<form method="post"><input name="documentId" type="hidden" value="synthetic-record"><input name="other" id="access_token" type="hidden" value="hidden-canary"><input name="password" type="password" value="password-canary"><input name="sessionId" type="hidden" value="session-canary"><input name="locked" disabled><button type="button" aria-disabled="true">Unavailable</button><button type="button" onclick="this.form.submit()">Submit once</button></form></main>`,
     );
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -37,6 +37,19 @@ test("bounded form inspection redacts credentials and DOM submit is never repeat
       3,
     );
     const page = await engine.execute({ action: "snapshot" });
+    assert.equal(
+      page.elements.find((element) => element.label === "password").type,
+      "password",
+    );
+    assert.equal(
+      page.elements.find((element) => element.label === "locked").disabled,
+      true,
+    );
+    assert.equal(
+      page.elements.find((element) => element.label === "Unavailable").disabled,
+      true,
+    );
+    assert(!JSON.stringify(page).includes("password-canary"));
     await assert.rejects(
       () => engine.execute({ action: "inspect", ref: form.elements[0].ref }),
       { code: "STALE_REF" },
@@ -58,6 +71,30 @@ test("bounded form inspection redacts credentials and DOM submit is never repeat
       () => engine.execute({ action: "inspect", ref: button.ref }),
       { code: "READ_ONLY" },
     );
+  } finally {
+    await engine.execute({ action: "close" });
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("snapshot tolerates a document without a body while navigation settles", async () => {
+  const server = http.createServer((req, res) => {
+    res.setHeader("content-type", "text/html");
+    res.end(
+      '<body><script>document.addEventListener("DOMContentLoaded", () => document.body.remove())</script>',
+    );
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const engine = new BrowserEngine();
+  try {
+    await engine.start({ connection: "isolated" });
+    const page = await engine.execute({
+      action: "open",
+      url: `http://127.0.0.1:${server.address().port}`,
+    });
+    assert.equal(page.text, "");
+    assert.equal(page.totalElements, 0);
   } finally {
     await engine.execute({ action: "close" });
     server.closeAllConnections();
