@@ -20,6 +20,8 @@ description: 실제 Chrome/Edge를 짧은 JSON 명령으로 제어하는 나래 
 
 새 snapshot, 이동, 입력 후에는 이전 ref를 쓰지 않는다. `STALE_REF`가 나면 snapshot을 다시 읽는다. 코드·명령·ref를 지어내지 않는다. 로그인이 필요한 상태를 성공했다고 가정하지 않는다. 명령이 실패하면 실제 error를 보고하며 가짜 본문으로 대신하지 않는다.
 
+`snapshot`은 기본 35개, 최대 100개의 요소를 한 번에 반환한다. `hasMore:true`이면 `nextOffset`을 다음 `snapshot --offset`에 넣어 이어 읽거나 필요한 표시명으로 `--filter`한다. 화면에 없다고 판단하기 전에 추가 항목을 확인한다. 펼쳐진 combobox의 선택지는 우선 반환하며 `expanded:true`이면 상자를 다시 누르지 말고 실제 `option`을 읽어 선택한다. 새 관찰 뒤에는 새 ref만 사용한다.
+
 ## 기존 Chrome 탭 연결
 
 사용자가 기존 Chrome/Edge를 사용하라고 요청하면 `narae-browser extension`의 설치 안내를 확인하고 `attach --session TASK`를 실행한다. 공식 Playwright 확장에서 사용자가 선택한 기존 탭을 제어하며 새 프로필을 열거나 쿠키를 복사하지 않는다. 이후 같은 세션의 snapshot·tabs·tab과 실제 ref를 사용한다. 연결 실패를 새 창 실행으로 대신하지 않는다. `close`는 기존 Chrome을 닫지 않고 연결만 해제한다. Edge·프로필 및 로컬 CDP 선택은 [기존 Chrome 연결](README.md#이미-열린-chrome-연결)을 따른다. 뉴스·읽기 전용 agent의 전용 세션 정책은 유지한다.

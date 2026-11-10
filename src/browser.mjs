@@ -361,12 +361,56 @@ export class BrowserEngine {
           );
         };
         const list = [];
-        const nodes = document.querySelectorAll(
-          selector ||
-            "a,button,label[for],input:not([type=hidden]),textarea,select,[role=button],[role=link],[role=treeitem],[role=tab],[role=menuitem],[role=gridcell],[role=option],[role=combobox],[role=checkbox],[role=radio],[contenteditable=true]",
+        const nodes = [
+          ...document.querySelectorAll(
+            selector ||
+              "a,button,label[for],input:not([type=hidden]),textarea,select,[role=button],[role=link],[role=treeitem],[role=tab],[role=menuitem],[role=gridcell],[role=option],[role=combobox],[role=checkbox],[role=radio],[contenteditable=true]",
+          ),
+        ];
+        const dialogs = [
+          ...document.querySelectorAll(
+            "dialog[open],[role=dialog],[aria-modal=true]",
+          ),
+        ].filter(visible);
+        const scope = dialogs.at(-1) || document.body;
+        const expanded = [
+          ...scope.querySelectorAll("[role=combobox][aria-expanded=true]"),
+        ].filter(visible);
+        const owners =
+          expanded.length === 1
+            ? (
+                expanded[0].getAttribute("aria-controls") ||
+                expanded[0].getAttribute("aria-owns") ||
+                ""
+              )
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((id) => document.getElementById(id))
+                .filter(Boolean)
+            : [];
+        const boxes = [...document.querySelectorAll("[role=listbox]")].filter(
+          (e) =>
+            visible(e) &&
+            (!owners.length ||
+              owners.some((owner) => owner === e || owner.contains(e))) &&
+            e.querySelector("[role=option]"),
         );
+        const lists = boxes.filter(
+          (box) => !boxes.some((child) => child !== box && box.contains(child)),
+        );
+        const popup = new Set(
+          expanded.length === 1 && lists.length === 1
+            ? [...lists[0].querySelectorAll("[role=option]")].filter(visible)
+            : [],
+        );
+        // Reorder only requested nodes: an explicit selector remains a boundary.
+        const ordered = [
+          ...nodes.filter((e) => popup.has(e)),
+          ...nodes.filter((e) => !popup.has(e)),
+        ];
+        let popupMatches = 0;
         let i = 0;
-        for (const e of nodes) {
+        for (const e of ordered) {
           const nativeCheck = e.matches(
             "input[type=checkbox],input[type=radio]",
           );
@@ -408,6 +452,7 @@ export class BrowserEngine {
           if (!label && tag === "a") continue;
           if (filter && !label.includes(filter)) continue;
           const ref = version + "/e" + ++i;
+          if (popup.has(e)) popupMatches++;
           e.setAttribute("data-narae-ref", ref);
           list.push({
             ref,
@@ -417,6 +462,15 @@ export class BrowserEngine {
             tag,
             ...(check ? { checked: check.checked } : {}),
             ...(tag === "a" ? { href: e.href } : {}),
+            ...(role === "combobox"
+              ? { display: e.innerText.slice(0, 180) }
+              : {}),
+            ...(e.hasAttribute("aria-expanded")
+              ? { expanded: e.getAttribute("aria-expanded") === "true" }
+              : {}),
+            ...(e.hasAttribute("aria-selected")
+              ? { selected: e.getAttribute("aria-selected") === "true" }
+              : {}),
           });
         }
         const main =
@@ -428,6 +482,23 @@ export class BrowserEngine {
           text: main.innerText.replace(/\n{3,}/g, "\n\n").slice(0, chars),
           elements: list.slice(offset, offset + limit),
           totalElements: list.length,
+          offset,
+          limit,
+          hasMore: list.length > offset + limit,
+          nextOffset: list.length > offset + limit ? offset + limit : null,
+          selection: popupMatches
+            ? {
+                label: (
+                  expanded[0].getAttribute("aria-label") ||
+                  expanded[0].innerText ||
+                  ""
+                )
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, 180),
+                optionCount: popup.size,
+              }
+            : null,
         };
       },
       {

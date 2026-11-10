@@ -51,6 +51,10 @@ K-에듀파인 회수의 일반적인 실제 흐름은 **선택한 한 건 → �
 
 ## 선택 컨트롤과 Nexacro 메뉴
 
+`snapshot`의 기본 요소 한도는 35개이고 `--limit`은 최대 100이다. 이는 한 번의 응답 크기이며 전체 화면의 조회 한도가 아니다. `hasMore:true`이면 `nextOffset`으로 다음 구간을 읽고, 필요한 선택지를 알면 `snapshot --filter '현재 요청값'`으로 좁힌다. 끝에서는 `hasMore:false`, `nextOffset:null`을 반환한다. 매번 새 관찰의 ref를 사용한다.
+
+대화상자 밖에 별도 `listbox`로 열린 선택지는 연결된 combobox의 `aria-controls`/`aria-owns`, 또는 유일하게 열린 목록을 대조해 기본 관찰에서 우선한다. `selection`은 열린 목록의 이름·선택지 수를, combobox의 `expanded`와 `display`는 현재 펼침 상태·표시값을 알려준다. `expanded:true`인 상자를 반복해서 누르지 않는다. 원하는 항목이 기본 응답에 없으면 필터나 다음 구간으로 확인한 뒤 실제 `option`을 한 번 선택한다. `--selector`로 지정한 범위 밖의 요소를 자동 추가하지 않는다.
+
 `check REF`·`uncheck REF`는 현재 snapshot의 선택 상태와 실제 checkbox/radio를 대조하고 적용 후 다시 읽는다. 숨긴 input을 보이는 행/label로 표현한 표도 선택할 수 있다. 행의 제목·기안자·현재 상태를 대조하고 정확히 한 건만 선택한다. 전체 선택을 개별 문서 선택으로 혼동하지 않는다.
 
 ```powershell
